@@ -1,0 +1,53 @@
+<?php
+/**
+ * Agendamentos - Salvamento via AJAX
+ * Parte do Plugin Gestão de Serviços
+ * @author DriveWeb - Rodrigo Soares | www.driveweb.pt
+ * @copyright 2025 DriveWeb. Todos os direitos reservados.
+ * @date 18/06/2025
+ */
+
+if (!defined('ABSPATH')) exit;
+
+// Registro da ação AJAX (visitantes e logados)
+add_action('wp_ajax_nopriv_agp_salvar_agendamento', 'agp_salvar_agendamento');
+add_action('wp_ajax_agp_salvar_agendamento', 'agp_salvar_agendamento');
+
+/**
+ * Função que salva o agendamento enviado via formulário do front-end
+ */
+function agp_salvar_agendamento() {
+    $nome     = sanitize_text_field($_POST['nome']     ?? '');
+    $telefone = sanitize_text_field($_POST['telefone'] ?? '');
+    $servico  = sanitize_text_field($_POST['servico']  ?? '');
+    $data     = sanitize_text_field($_POST['data']     ?? '');
+    $hora     = sanitize_text_field($_POST['hora']     ?? '');
+
+    // Validação de campos obrigatórios
+    if (!$nome || !$telefone || !$servico || !$data || !$hora) {
+        wp_send_json_error(['message' => 'Preencha todos os campos obrigatórios.']);
+    }
+
+    // Criação do post (agendamento)
+    $post_id = wp_insert_post([
+        'post_type'    => 'agp_agendamento',
+        'post_status'  => 'publish',
+        'post_title'   => "$servico - $nome",
+        'post_content' => "Agendamento feito via site em $data às $hora.",
+    ]);
+
+    // Verificação de erro
+    if (is_wp_error($post_id) || !$post_id) {
+        wp_send_json_error(['message' => 'Erro ao salvar o agendamento.']);
+    }
+
+    // Salvando os metadados
+    update_post_meta($post_id, '_agp_data', $data);
+    update_post_meta($post_id, '_agp_hora', $hora);
+    update_post_meta($post_id, '_agp_nome_cliente', $nome);
+    update_post_meta($post_id, '_agp_telefone_cliente', $telefone);
+    update_post_meta($post_id, '_agp_servico', $servico);
+
+    // Retorno de sucesso
+    wp_send_json_success(['message' => 'Agendamento realizado com sucesso!']);
+}
